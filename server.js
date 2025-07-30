@@ -1,5 +1,5 @@
 require('dotenv').config();
-
+const AUTH_TOKEN = process.env.AUTH_TOKEN; // 🛡️ Замість жорстко закодованого значення
 const express = require('express');
 const path = require('path');
 const app = express();
@@ -31,8 +31,12 @@ app.use(express.static('public'));
 
 // 👉 ЗБЕРЕЖЕННЯ картки
 app.post('/save', async (req, res) => {
-  const data = req.body;
+  const authHeader = req.headers['authorization'];
+  if (authHeader !== `Bearer ${AUTH_TOKEN}`) {
+    return res.status(403).send('⛔ Недостатньо прав доступу');
+  }
 
+  const data = req.body;
   if (!data.name) return res.status(400).send('Ім’я обовʼязкове');
 
   try {
@@ -145,8 +149,11 @@ function renderCard(data, name) {
 
       const res = await fetch('/save', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: "${name}", texts, images })
+          headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer supersecrettoken123' // 🔒 Той самий токен
+  },
+  body: JSON.stringify(payload),
       });
 
       if (res.ok) {

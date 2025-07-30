@@ -58,6 +58,16 @@
   </head>
   <noscript>You need to enable JavaScript to run this app.</noscript>
   <body>
+    <script>
+      const correctPassword = '1488U2711S'; // 🔑 Задай свій пароль тут
+
+      const userPassword = prompt('Введіть пароль для доступу:');
+      if (userPassword !== correctPassword) {
+        document.body.innerHTML =
+          '<h2 style="color:white;text-align:center">⛔ Доступ заборонено</h2>';
+        throw new Error('Wrong password');
+      }
+    </script>
     <div id="root">
       <div
         style="
