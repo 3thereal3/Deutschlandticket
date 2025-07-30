@@ -1,45 +1,73 @@
+require('dotenv').config();
+
 const express = require('express');
-const fs = require('fs');
 const path = require('path');
 const app = express();
+
+const { MongoClient } = require('mongodb');
+const uri = process.env.MONGO_URI;
 const PORT = process.env.PORT || 3000;
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.static('public')); // Тут твій HTML та зображення
+// Підключення до клієнта MongoDB
+const client = new MongoClient(uri);
+let collection;
 
-// Зберігаємо картку
-app.post('/save', (req, res) => {
-  const data = req.body;
-  const dbPath = path.join(process.cwd(), 'data.json');
-  let db = {};
+async function startServer() {
+  try {
+    await client.connect();
+    const db = client.db('deutschlandticket'); // Назва бази
+    collection = db.collection('cards'); // Назва колекції
 
-  if (fs.existsSync(dbPath)) {
-    db = JSON.parse(fs.readFileSync(dbPath));
+    console.log('🟢 Підключено до MongoDB');
+
+    app.listen(PORT, () => console.log('🚀 Сервер запущено: http://localhost:' + PORT));
+  } catch (err) {
+    console.error('❌ Помилка підключення до MongoDB:', err);
   }
+}
 
-  db[data.name] = {
-    texts: data.texts,
-    images: data.images,
-  };
+app.use(express.json({ limit: '10mb' }));
+app.use(express.static('public'));
 
-  fs.writeFileSync(dbPath, JSON.stringify(db, null, 2));
-  res.sendStatus(200);
+// 👉 ЗБЕРЕЖЕННЯ картки
+app.post('/save', async (req, res) => {
+  const data = req.body;
+
+  if (!data.name) return res.status(400).send('Ім’я обовʼязкове');
+
+  try {
+    await collection.updateOne(
+      { name: data.name },
+      { $set: { texts: data.texts, images: data.images } },
+      { upsert: true } // створити, якщо не існує
+    );
+
+    res.sendStatus(200);
+  } catch (err) {
+    console.error('❌ Помилка збереження:', err);
+    res.sendStatus(500);
+  }
 });
 
-// Відкриваємо картку за іменем
-app.get('/card/:name', (req, res) => {
-  const dbPath = path.join(process.cwd(), 'data.json');
-  if (!fs.existsSync(dbPath)) return res.send('Дані не знайдені');
+// 👉 ВІДОБРАЖЕННЯ картки
+app.get('/card/:name', async (req, res) => {
+  const name = req.params.name;
 
-  const db = JSON.parse(fs.readFileSync(dbPath));
-  const data = db[req.params.name];
+  try {
+    const data = await collection.findOne({ name });
 
-  if (!data) return res.send('Картка не знайдена');
+    if (!data) return res.send('Картка не знайдена');
 
-  res.send(renderCard(data, req.params.name));
+    // Твоя функція рендеру HTML (вона вже має бути у тебе)
+    res.send(renderCard(data, name));
+  } catch (err) {
+    console.error('❌ Помилка при отриманні картки:', err);
+    res.sendStatus(500);
+  }
 });
 
-app.listen(PORT, () => console.log('Сервер запущено на http://localhost:' + PORT));
+// 🔥 Запускаємо сервер тільки після підключення до бази
+startServer();
 
 // HTML генерація з динамічними текстами та картинками
 function renderCard(data, name) {
@@ -185,59 +213,31 @@ function renderCard(data, name) {
               <div
                 style="display: flex; justify-content: center; gap: 20px; padding: 20px"
               >
-                <input
-                  type="file"
-                  accept="image/*"
-                  onchange="replaceImage(event, 'img1')"
-                  style="display: none"
-                  id="file1"
-                />
                 <img
                   src="${getImg(0)}"
                   id="img1"
                   alt="Logo 1"
                   style="height: 27px; cursor: pointer"
-                  onclick="document.getElementById('file1').click()"
-                />
+                  />
 
-                <input
-                  type="file"
-                  accept="image/*"
-                  onchange="replaceImage(event, 'img2')"
-                  style="display: none"
-                  id="file2"
-                />
+                
                 <img
                   src="${getImg(1)}"
                   id="img2"
                   alt="Logo 2"
                   style="height: 27px; cursor: pointer"
-                  onclick="document.getElementById('file2').click()"
-                />
+                 >
 
-                <input
-                  type="file"
-                  accept="image/*"
-                  onchange="replaceImage(event, 'img3')"
-                  style="display: none"
-                  id="file3"
-                />
+                
                 <img
                   src="${getImg(2)}"
                   id="img3"
                   alt="Logo 3"
                   style="height: 27px; cursor: pointer"
-                  onclick="document.getElementById('file3').click()"
-                />
+                 >
               </div>
               <div style="display: flex; justify-content: center; width: 100%">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onchange="replaceImage(event, 'mainImg')"
-                  style="display: none"
-                  id="mainFile"
-                />
+                
                 <img
                   id="mainImg"
                   src="${getImg(3)}"
@@ -247,9 +247,9 @@ function renderCard(data, name) {
                     height: auto;
                     width: auto;
                     object-fit: contain;
-                    cursor: pointer;
+                    
                   "
-                  onclick="document.getElementById('mainFile').click()"
+                  
                 />
               </div>
 
@@ -272,7 +272,7 @@ function renderCard(data, name) {
                 "
               >
                 <div
-                  contenteditable="true"
+                 
                   style="font-weight: bold; color: rgb(0, 0, 0)"
                 >
                   ${getText(0)}
@@ -349,7 +349,7 @@ function renderCard(data, name) {
                   "
                 >
                   <div
-                    contenteditable="true"
+                    
                     style="font-weight: bold; color: rgb(0, 0, 0)"
                   >
                     ${getText(1)}
@@ -374,7 +374,7 @@ function renderCard(data, name) {
                   "
                 >
                   <div
-                    contenteditable="true"
+                   
                     style="font-weight: bold; color: rgb(0, 0, 0)"
                   >
                     ${getText(2)}
@@ -399,7 +399,7 @@ function renderCard(data, name) {
                   "
                 >
                   <div
-                    contenteditable="true"
+                    
                     style="font-weight: bold; color: rgb(0, 0, 0)"
                   >
                     ${getText(3)}
@@ -424,7 +424,7 @@ function renderCard(data, name) {
                   "
                 >
                   <div
-                    contenteditable="true"
+                   
                     style="font-weight: bold; color: rgb(0, 0, 0)"
                   >
                     ${getText(4)}
@@ -488,7 +488,7 @@ function renderCard(data, name) {
                   "
                 >
                   <div
-                    contenteditable="true"
+                    
                     style="font-weight: bold; color: rgb(0, 0, 0)"
                   >
                     ${getText(5)}
@@ -560,7 +560,7 @@ function renderCard(data, name) {
                   "
                 >
                   <div
-                    contenteditable="true"
+                    
                     style="font-weight: bold; color: rgb(0, 0, 0)"
                   >
                     ${getText(6)}
@@ -569,7 +569,7 @@ function renderCard(data, name) {
               </div>
             </div>
             <div
-              contenteditable="true"
+              
               style="
                 padding: 20px;
                 display: flex;
@@ -584,16 +584,8 @@ function renderCard(data, name) {
         </div>
       </div>
     </div>
-
-  <div style="text-align: center; padding: 20px; background: white;">
-    <button onclick="saveCard()">💾 Зберегти зміни</button>
-  </div>
 </div>
 </body>
 </html>
   `;
 }
-
-app.listen(PORT, () => {
-  console.log(`Сервер запущено: http://localhost:${PORT}`);
-});
