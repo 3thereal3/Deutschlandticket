@@ -151,7 +151,7 @@ function renderCard(data, name) {
         method: 'POST',
           headers: {
     'Content-Type': 'application/json',
-    'Authorization': 'Bearer supersecrettoken123' // 🔒 Той самий токен
+    'Authorization': 'Bearer pussyhunter1491' // 🔒 Той самий токен
   },
   body: JSON.stringify(payload),
       });

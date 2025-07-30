@@ -1,6 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <script>
+      // Проверка пароля
+      const correctPassword = 'gdtk-2025!';
+      const userPassword = prompt('Введіть пароль для доступу:');
+      if (!userPassword || userPassword !== correctPassword) {
+        document.documentElement.innerHTML =
+          '<h2 style="color:white;text-align:center">⛔ Доступ заборонено</h2>';
+        throw new Error('Access denied');
+      }
+
+      // Запрос токена
+      const savedToken = sessionStorage.getItem('authToken');
+      if (!savedToken) {
+        const input = prompt('🔒 Введіть токен для збереження:');
+        if (input) {
+          sessionStorage.setItem('authToken', input);
+        } else {
+          document.documentElement.innerHTML =
+            '<h2 style="color:white;text-align:center">⛔ Без токена збереження неможливе</h2>';
+          throw new Error('No auth token');
+        }
+      }
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Deutschlandticket</title>
@@ -47,21 +70,6 @@
       }
     </style>
     <script>
-      const correctPassword = '1488'; // 🔑 Замінити на свій пароль
-      const userPassword = prompt('Введіть пароль для доступу:');
-      if (!userPassword) {
-        // Якщо користувач не ввів пароль, зупиняємо завантаження сторінки
-        document.documentElement.innerHTML =
-          '<h2 style="color:white;text-align:center">⛔ Доступ заборонено</h2>';
-        throw new Error('Access denied: No password provided');
-      }
-      if (userPassword !== correctPassword) {
-        // Зупиняємо завантаження сторінки
-        document.documentElement.innerHTML =
-          '<h2 style="color:white;text-align:center">⛔ Доступ заборонено</h2>';
-        throw new Error('Wrong password');
-      }
-
       function replaceImage(event, targetId) {
         const reader = new FileReader();
         reader.onload = function () {
@@ -555,6 +563,7 @@
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            Authorization: 'Bearer ' + sessionStorage.getItem('authToken'),
           },
           body: JSON.stringify(payload),
         });
