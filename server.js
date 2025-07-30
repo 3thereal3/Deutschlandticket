@@ -1,4 +1,5 @@
 require('dotenv').config();
+console.log('AUTH_TOKEN на сервері:', process.env.AUTH_TOKEN);
 const AUTH_TOKEN = process.env.AUTH_TOKEN; // 🛡️ Замість жорстко закодованого значення
 const express = require('express');
 const path = require('path');
@@ -151,7 +152,7 @@ function renderCard(data, name) {
         method: 'POST',
           headers: {
     'Content-Type': 'application/json',
-    'Authorization': 'Bearer pussyhunter1491' // 🔒 Той самий токен
+    'Authorization': 'Bearer supersecrettoken123' // 🔒 Той самий токен
   },
   body: JSON.stringify(payload),
       });
