@@ -2,15 +2,6 @@
 <html lang="en">
   <head>
     <script>
-      // Проверка пароля
-      const correctPassword = 'gdtk-2025!';
-      const userPassword = prompt('Введіть пароль для доступу:');
-      if (!userPassword || userPassword !== correctPassword) {
-        document.documentElement.innerHTML =
-          '<h2 style="color:white;text-align:center">⛔ Доступ заборонено</h2>';
-        throw new Error('Access denied');
-      }
-
       // Запрос токена
       const savedToken = sessionStorage.getItem('authToken');
       if (!savedToken) {
