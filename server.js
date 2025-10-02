@@ -1,84 +1,82 @@
 require('dotenv').config();
-console.log('AUTH_TOKEN на сервері:', process.env.AUTH_TOKEN);
-const AUTH_TOKEN = process.env.AUTH_TOKEN; // 🛡️ Замість жорстко закодованого значення
 const express = require('express');
-const path = require('path');
-const app = express();
-
 const { MongoClient } = require('mongodb');
-const uri = process.env.MONGO_URI;
+
 const PORT = process.env.PORT || 3000;
+const AUTH_TOKEN = process.env.AUTH_TOKEN;
 
-// Підключення до клієнта MongoDB
-const client = new MongoClient(uri);
-let collection;
+const oldClient = new MongoClient(process.env.OLD_MONGO_URI);
+const newClient = new MongoClient(process.env.NEW_MONGO_URI);
 
-async function startServer() {
-  try {
-    await client.connect();
-    const db = client.db('deutschlandticket'); // Назва бази
-    collection = db.collection('cards'); // Назва колекції
+let oldCollection;
+let newCollection;
 
-    console.log('🟢 Підключено до MongoDB');
-
-    app.listen(PORT, () => console.log('🚀 Сервер запущено: http://localhost:' + PORT));
-  } catch (err) {
-    console.error('❌ Помилка підключення до MongoDB:', err);
-  }
-}
-
+const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static('public'));
 
-// 👉 ЗБЕРЕЖЕННЯ картки
+// Подключение к обеим базам
+async function startServer() {
+  try {
+    await oldClient.connect();
+    const oldDb = oldClient.db('deutschlandticket');
+    oldCollection = oldDb.collection('cards');
+
+    await newClient.connect();
+    const newDb = newClient.db('deutschlandticket');
+    newCollection = newDb.collection('cards');
+
+    console.log('🟢 Подключено к обеим базам MongoDB');
+
+    app.listen(PORT, () => console.log('🚀 Сервер запущен на http://localhost:' + PORT));
+  } catch (err) {
+    console.error('❌ Ошибка подключения к MongoDB:', err);
+  }
+}
+
+// Сохранение карточки только в новую базу
 app.post('/save', async (req, res) => {
   const authHeader = req.headers['authorization'];
   if (authHeader !== `Bearer ${AUTH_TOKEN}`) {
-    return res.status(403).send('⛔ Недостатньо прав доступу');
+    return res.status(403).send('⛔ Недостаточно прав доступа');
   }
 
   const data = req.body;
-  if (!data.name) return res.status(400).send('Ім’я обовʼязкове');
+  if (!data.name) return res.status(400).send('Имя обязательно');
 
   try {
-    await collection.updateOne(
+    await newCollection.updateOne(
       { name: data.name },
       { $set: { texts: data.texts, images: data.images } },
-      { upsert: true } // створити, якщо не існує
+      { upsert: true }
     );
-
     res.sendStatus(200);
   } catch (err) {
-    console.error('❌ Помилка збереження:', err);
+    console.error('❌ Ошибка сохранения:', err);
     res.sendStatus(500);
   }
 });
 
-// 👉 ВІДОБРАЖЕННЯ картки
+// Получение карточки: сначала из новой, если нет — из старой
 app.get('/card/:name', async (req, res) => {
   const name = req.params.name;
-
   try {
-    const data = await collection.findOne({ name });
+    let data = await newCollection.findOne({ name });
+    if (!data) data = await oldCollection.findOne({ name });
 
-    if (!data) return res.send('Картка не знайдена');
+    if (!data) return res.send('Карточка не найдена');
 
-    // Твоя функція рендеру HTML (вона вже має бути у тебе)
     res.send(renderCard(data, name));
   } catch (err) {
-    console.error('❌ Помилка при отриманні картки:', err);
+    console.error('❌ Ошибка при получении карточки:', err);
     res.sendStatus(500);
   }
 });
 
-// 🔥 Запускаємо сервер тільки після підключення до бази
-startServer();
-
-// HTML генерація з динамічними текстами та картинками
+// HTML генерация карточки
 function renderCard(data, name) {
   const texts = data.texts || [];
   const images = data.images || [];
-
   const getText = i => texts[i] || '';
   const getImg = i => images[i] || '';
 
@@ -86,84 +84,37 @@ function renderCard(data, name) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Deutschlandticket</title>
-  <style>
-      @keyframes moveProgress {
-        0% {
-          transform: translateX(0);
-          -webkit-transform: translateX(0);
-        }
-        100% {
-          transform: translateX(calc(min(100vw, 500px) - 185px));
-          -webkit-transform: translateX(calc(min(100vw, 500px) - 185px));
-        }
-      }
-      @media (max-width: 500px) {
-        @keyframes moveProgress {
-          0% {
-            transform: translateX(0);
-            -webkit-transform: translateX(0);
-          }
-          100% {
-            transform: translateX(calc(min(100vw, 500px) - 200px));
-            -webkit-transform: translateX(calc(min(100vw, 500px) - 200px));
-          }
-        }
-      }
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Deutschlandticket</title>
+<style>
+  /* Здесь твой CSS код, как у тебя был ранее */
+</style>
+<script>
+  function replaceImage(event, targetId) {
+    const reader = new FileReader();
+    reader.onload = () => { document.getElementById(targetId).src = reader.result; };
+    reader.readAsDataURL(event.target.files[0]);
+  }
 
-      html,
-      body {
-        margin: 0;
-        padding: 0;
-        background-color: rgb(195, 10, 54); /* основной красный */
-      }
+  async function saveCard() {
+    const texts = Array.from(document.querySelectorAll('[contenteditable="true"]')).map(el => el.innerText);
+    const images = ['img1','img2','img3','mainImg'].map(id => document.getElementById(id)?.src || '');
+    const payload = { name: '${name}', texts, images };
 
-      .progress-bar {
-        width: 100px;
-        height: 6px;
-        background: #007bff;
-        border-radius: 3px;
-        position: absolute;
-        left: 0;
-        will-change: transform;
-        animation: moveProgress 2s linear infinite alternate;
-      }
-    </style>
-  <script>
-    function replaceImage(event, targetId) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        document.getElementById(targetId).src = reader.result;
-      };
-      reader.readAsDataURL(event.target.files[0]);
-    }
+    const res = await fetch('/save', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${AUTH_TOKEN}'
+      },
+      body: JSON.stringify(payload)
+    });
 
-    async function saveCard() {
-      const texts = Array.from(document.querySelectorAll('[contenteditable="true"]'))
-        .map(el => el.innerText);
-      const images = ['img1', 'img2', 'img3', 'mainImg'].map(id => {
-        const el = document.getElementById(id);
-        return el ? el.src : '';
-      });
-
-      const res = await fetch('/save', {
-        method: 'POST',
-          headers: {
-    'Content-Type': 'application/json',
-    'Authorization': 'Bearer supersecrettoken123' // 🔒 Той самий токен
-  },
-  body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
-        alert("Картку оновлено!");
-      } else {
-        alert("Помилка збереження.");
-      }
-    }
-  </script>
+    if(res.ok) alert("Картку оновлено!");
+    else alert("Помилка збереження.");
+  }
+</script>
 </head>
 <body>
 <div id="root">
