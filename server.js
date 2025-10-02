@@ -87,9 +87,7 @@ function renderCard(data, name) {
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Deutschlandticket</title>
-<style>
-  /* Здесь твой CSS код, как у тебя был ранее */
-</style>
+<style> @keyframes moveProgress { 0% { transform: translateX(0); -webkit-transform: translateX(0); } 100% { transform: translateX(calc(min(100vw, 500px) - 185px)); -webkit-transform: translateX(calc(min(100vw, 500px) - 185px)); } } @media (max-width: 500px) { @keyframes moveProgress { 0% { transform: translateX(0); -webkit-transform: translateX(0); } 100% { transform: translateX(calc(min(100vw, 500px) - 200px)); -webkit-transform: translateX(calc(min(100vw, 500px) - 200px)); } } } html, body { margin: 0; padding: 0; background-color: rgb(195, 10, 54); /* основной красный */ } .progress-bar { width: 100px; height: 6px; background: #007bff; border-radius: 3px; position: absolute; left: 0; will-change: transform; animation: moveProgress 2s linear infinite alternate; } </style>
 <script>
   function replaceImage(event, targetId) {
     const reader = new FileReader();
