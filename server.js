@@ -548,3 +548,5 @@ function renderCard(data, name) {
 </html>
   `;
 }
+
+startServer();
